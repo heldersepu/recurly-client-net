@@ -4,6 +4,7 @@ Unreleased
 * added; invoice address on previews
 * added; `invoice.OriginalInvoiceNumber`
 * added; VatLocationValid to Account
+* added; `invoice.InvoiceNumberPrefix` and `invoice.InvoiceNumberWithPrefix()`
 
 1.1.7 (stable) / 2014-12-19
 ==================

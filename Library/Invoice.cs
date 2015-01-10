@@ -22,6 +22,7 @@ namespace Recurly
         public string Uuid { get; protected set; }
         public InvoiceState State { get; protected set; }
         public int InvoiceNumber { get; private set; }
+        public string InvoiceNumberPrefix { get; private set; }
         public string PoNumber { get; private set; }
         public string VatNumber { get; private set; }
         public int SubtotalInCents { get; private set; }
@@ -68,6 +69,16 @@ namespace Recurly
             ReadXml(reader);
         }
 
+        private string memberUrl()
+        {
+            return UrlPrefix + InvoiceNumberWithPrefix();
+        }
+
+        public string InvoiceNumberWithPrefix()
+        {
+            return InvoiceNumberPrefix + Convert.ToString(InvoiceNumber);
+        }
+
         /// <summary>
         /// Returns a PDF representation of an invoice
         /// </summary>
@@ -75,8 +86,7 @@ namespace Recurly
         /// <returns></returns>
         public byte[] GetPdf(string acceptLanguage = "en-US")
         {
-            return Client.Instance.PerformDownloadRequest(UrlPrefix + InvoiceNumber,
-               "application/pdf", acceptLanguage);
+            return Client.Instance.PerformDownloadRequest(memberUrl(), "application/pdf", acceptLanguage);
         }
 
         /// <summary>
@@ -84,10 +94,7 @@ namespace Recurly
         /// </summary>
         public void MarkSuccessful()
         {
-            Client.Instance.PerformRequest(Client.HttpRequestMethod.Put,
-                UrlPrefix + InvoiceNumber + "/mark_successful",
-                ReadXml);
-
+            Client.Instance.PerformRequest(Client.HttpRequestMethod.Put, memberUrl() + "/mark_successful", ReadXml);
         }
 
         /// <summary>
@@ -95,10 +102,7 @@ namespace Recurly
         /// </summary>
         public void MarkFailed()
         {
-            Client.Instance.PerformRequest(Client.HttpRequestMethod.Put,
-               UrlPrefix + InvoiceNumber + "/mark_failed",
-               ReadXml);
-
+            Client.Instance.PerformRequest(Client.HttpRequestMethod.Put, memberUrl() + "/mark_failed", ReadXml);
         }
 
         /// <summary>
@@ -108,10 +112,7 @@ namespace Recurly
         public CouponRedemption GetRedemption()
         {
             var cr = new CouponRedemption();
-
-            var statusCode = Client.Instance.PerformRequest(Client.HttpRequestMethod.Get,
-                UrlPrefix + InvoiceNumber + "/redemption",
-                cr.ReadXml);
+            var statusCode = Client.Instance.PerformRequest(Client.HttpRequestMethod.Get, memberUrl() + "/redemption", cr.ReadXml);
 
             return statusCode == HttpStatusCode.NotFound ? null : cr;
         }
@@ -137,7 +138,7 @@ namespace Recurly
             var invoice = new Invoice();
 
             var response = Client.Instance.PerformRequest(Client.HttpRequestMethod.Post,
-                UrlPrefix + InvoiceNumber + "/refund",
+                memberUrl() + "/refund",
                 refunds.WriteXml,
                 invoice.ReadXml);
 
@@ -189,6 +190,10 @@ namespace Recurly
                         int invNumber;
                         if (Int32.TryParse(reader.ReadElementContentAsString(), out invNumber))
                             InvoiceNumber = invNumber;
+                        break;
+
+                    case "invoice_number_prefix":
+                        InvoiceNumberPrefix = reader.ReadElementContentAsString();
                         break;
 
                     case "po_number":
@@ -319,10 +324,20 @@ namespace Recurly
         /// <returns></returns>
         public static Invoice Get(int invoiceNumber)
         {
+            return Get(Convert.ToString(invoiceNumber));
+        }
+
+        /// <summary>
+        /// Look up an Invoice.
+        /// </summary>
+        /// <param name="invoiceNumber">Invoice Number</param>
+        /// <returns></returns>
+        public static Invoice Get(string invoiceNumberWithPrefix)
+        {
             var invoice = new Invoice();
 
             var statusCode = Client.Instance.PerformRequest(Client.HttpRequestMethod.Get,
-                Invoice.UrlPrefix + invoiceNumber,
+                Invoice.UrlPrefix + invoiceNumberWithPrefix,
                 invoice.ReadXml);
 
             return statusCode == HttpStatusCode.NotFound ? null : invoice;
